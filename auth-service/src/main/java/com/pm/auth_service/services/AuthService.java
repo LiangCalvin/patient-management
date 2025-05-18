@@ -20,7 +20,7 @@ public class AuthService {
         this.jwtUtil = jwtUtil;
     }
 
-    // password request -> password -> encoded -> $sgfsdg compare
+    // password request -> password -> encoded -> token compare
     public Optional<String> authenticate(LoginRequestDTO loginRequestDTO) {
         Optional<String> token = userService.findByEmail(loginRequestDTO.getEmail())
                 .filter(u -> passwordEncoder.matches(loginRequestDTO.getPassword(),

@@ -5,7 +5,6 @@ import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Base64;
@@ -16,8 +15,8 @@ public class JwtUtil {
 
     private final Key secretKey;
 
-    public JwtUtil(@Value("${jwt.secret}") String secretKey){
-        byte[] keyBytes = Base64.getDecoder().decode(secretKey.getBytes(StandardCharsets.UTF_8));
+    public JwtUtil(@Value("${jwt.secret}") String secret){
+        byte[] keyBytes = Base64.getDecoder().decode(secret.getBytes(StandardCharsets.UTF_8));
         this.secretKey = Keys.hmacShaKeyFor(keyBytes);
     }
 
@@ -29,9 +28,5 @@ public class JwtUtil {
                 .expiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24)) //24 hrs
                 .signWith(secretKey)
                 .compact();
-    }
-
-    public JwtUtil(Key secretKey) {
-        this.secretKey = secretKey;
     }
 }
