@@ -6,6 +6,7 @@ import software.amazon.awscdk.services.ec2.*;
 import software.amazon.awscdk.services.ec2.InstanceType;
 import software.amazon.awscdk.services.ecs.*;
 import software.amazon.awscdk.services.ecs.Protocol;
+import software.amazon.awscdk.services.ecs.patterns.ApplicationLoadBalancedFargateService;
 import software.amazon.awscdk.services.logs.LogGroup;
 import software.amazon.awscdk.services.logs.RetentionDays;
 import software.amazon.awscdk.services.msk.CfnCluster;
@@ -35,6 +36,41 @@ public class LocalStack extends Stack {
         CfnCluster mskCluster = createMskCluster();
 
         this.ecsCluster = createEcsCluster();
+
+        FargateService authService = createFargateService("AuthService",
+                "auth-service",
+                List.of(4005),
+                authServiceDb,
+                Map.of("JWT_SECRET", "+cvenjkHqA5JYp8euPY+Lh8REPPyj13npYLi+vjkKC0="));
+        authService.getNode().addDependency(authServiceDbHealthCheck);
+        authService.getNode().addDependency(authServiceDb);
+
+        FargateService billingService = createFargateService("BillingService",
+                "billing-service",
+                List.of(4001, 9001),
+                null,
+                null);
+
+        FargateService analyticsService = createFargateService("AnalyticsService",
+                "analytics-service",
+                List.of(4002),
+                null,
+                null);
+        analyticsService.getNode().addDependency(mskCluster);
+
+        FargateService patientService = createFargateService("PatientService",
+                "patient-service",
+                List.of(4000),
+                patientServiceDb,
+                Map.of(
+                        "BILLING_SERVICE_ADDRESS", "host.docker.internal",
+                        "BILLING_SERVICE_GRPC_PORT", "9001"
+                ));
+        patientService.getNode().addDependency(patientServiceDbHealthCheck);
+        patientService.getNode().addDependency(patientServiceDb);
+        patientService.getNode().addDependency(billingService);
+        patientService.getNode().addDependency(mskCluster);
+
     }
 
     private Vpc createVpc() {
@@ -121,6 +157,7 @@ public class LocalStack extends Stack {
                                         .removalPolicy(RemovalPolicy.DESTROY)
                                         .retention(RetentionDays.ONE_DAY)
                                         .build())
+                                .streamPrefix(imageName)
                         .build()));
 
         Map<String, String> envVars = new HashMap<>();
@@ -152,6 +189,8 @@ public class LocalStack extends Stack {
                 .serviceName(imageName)
                 .build();
     }
+
+   
 
     public static void main(final String[] args) {
         App app = new App(AppProps.builder().outdir("./cdk.out").build());
